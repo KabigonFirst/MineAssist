@@ -610,7 +610,9 @@ namespace MineAssist.Framework {
             if(!specialAction && t is Tool tool) {
                 if (t is FishingRod fr) {
                     updateFishingRod(time);
-                    fr.isTimingCast = true;
+                    //fr.isTimingCast = true;
+                    ModEntry.m_instance.Helper.Reflection.GetMethod(fr, "startCasting").Invoke();
+                    //fr.startCasting();
                     return;
                 }
                 if (Game1.player.canReleaseTool) {

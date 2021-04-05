@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MineAssist.Framework {
     class CommandFocusItem : Command {
-        public static string name = "FocusItem";
+        public new static string name = "FocusItem";
         public new enum Paramter {
             Offset,
             Index

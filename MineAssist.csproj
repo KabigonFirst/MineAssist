@@ -61,6 +61,7 @@
     <Compile Include="Framework\CommandFocusItem.cs" />
     <Compile Include="Framework\CommandSwitchMode.cs" />
     <Compile Include="Framework\ConnamdUseItem.cs" />
+    <Compile Include="Framework\ReflectiveObjects.cs" />
     <Compile Include="Framework\StardewWrap.cs" />
     <Compile Include="AdjustedInputEvent.cs" />
     <Compile Include="ModEntry.cs" />

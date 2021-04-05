@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MineAssist.Framework {
     class CommandCraft : Command {
-        public static string name = "Craft";
+        public new static string name = "Craft";
         public new enum Paramter {
             ItemName,
             ToPosition

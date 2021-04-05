@@ -30,6 +30,7 @@ namespace MineAssist.Framework {
             return null;
         }
 
+        public static string name = "Command";
         public bool isFinish { get; set; } = false;
         public bool isContinuous = false;
 

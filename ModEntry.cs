@@ -10,23 +10,33 @@ using Microsoft.Xna.Framework;
 namespace MineAssist {
     /// <summary>The mod entry point.</summary>
     public class ModEntry : Mod {
+        //public apis
         public static ModEntry m_instance;
 
+        //infrastructures
         private AdjustedInputEvent m_inputEvent;
         private SequentialCommandExecutor m_executor;
-
-        private ModConfig m_config;
-        private string m_curMode = "Default";
-
+        //for modify button tracking
         private SButton m_curModifyButton = SButton.None;
         private bool m_curModifyTriggered = false;
-        private CmdCfg m_cachedCmdCfg = null;
 
+        //the config
+        private ModConfig m_config;
+        //current mode config
+        private string m_curModeName = "Default";
         private Dictionary<string, CmdCfg> m_keyMap = null;
+        //current executing config
         private CmdCfg m_cmdcfg = null;
 
+        //suppor for common mode: when a key binding is not found in current mode it will try to find in common mode
+        private string m_commonModeName = "Common";
+        private Dictionary<string, CmdCfg> m_commonKeyMap = null;
+
+        //for cached config mechanism
+        private CmdCfg m_cachedCmdCfg = null;
+
         /*********
-        ** Public methods
+        ** Mod Entry
         *********/
         /// <summary>The mod entry point, called after the mod is first loaded.</summary>
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
@@ -51,13 +61,17 @@ namespace MineAssist {
             m_instance = this;
             m_executor = new SequentialCommandExecutor(helper);
             //determine default mode
-            if (!m_config.modes.ContainsKey(m_curMode)) {
+            if (!m_config.modes.ContainsKey(m_curModeName)) {
                 IEnumerator enumerator = m_config.modes.Keys.GetEnumerator();
                 enumerator.MoveNext();
-                m_curMode = (string)enumerator.Current;
-                this.Monitor.Log($"Default mode does not exists, use {m_curMode} Mode instead.", LogLevel.Error);
+                m_curModeName = (string)enumerator.Current;
+                this.Monitor.Log($"Default mode does not exists, use {m_curModeName} Mode instead.", LogLevel.Error);
             }
-            m_keyMap = m_config.getModeDict(m_curMode);
+            m_keyMap = m_config.getModeDict(m_curModeName);
+            //try to find common mode
+            if (m_config.modes.ContainsKey(m_commonModeName)) {
+                m_commonKeyMap = m_config.getModeDict(m_commonModeName);
+            }
 
             //bind event handler
             m_inputEvent = new AdjustedInputEvent(helper, m_config.overrideTrigger, m_config.triggerClickedThreshold);
@@ -94,20 +108,18 @@ namespace MineAssist {
                 //special case when modify key is not used and it in binding map, execute it
                 if (!m_curModifyTriggered) {
                     CmdCfg cfg = findCmdCfg(button);
-                    if (!(cfg is null) && m_executor.canTriggerNew()) {
+                    if (!(cfg is null) && m_executor.tryTriggerNew(cfg)) {
                         m_cmdcfg = cfg;
-                        m_executor.triggerNew(cfg);
                         return true;
                     }
                 }
                 m_curModifyTriggered = false;
+                return true;
             }
-            //if the released key is used in cached cmd, remove the cmd
-            if (m_cachedCmdCfg != null && (m_cachedCmdCfg.modifyKey == button || m_cachedCmdCfg.key == button)) {
-                m_cachedCmdCfg = null;
-            }
+
+            checkReleaseForCachedCommand(button);
             //if the released key is used in current cmd, stop the cmd
-            if (m_cmdcfg != null && (button == m_cmdcfg.modifyKey || button == m_cmdcfg.key)) {
+            if (m_cmdcfg != null && (button == m_cmdcfg.key)) {
                 m_executor.tryStop();
                 m_cmdcfg = null;
                 return true;
@@ -117,7 +129,7 @@ namespace MineAssist {
 
         /// <summary>Called when a button is pressed.</summary>
         /// <param name="button">The button.</param>
-        /// <returns>If a the release of buttion is processed</returns>
+        /// <returns>If a the press of buttion is processed</returns>
         protected bool buttonPressed(SButton button) {
 #if DEBUG
             this.Monitor.Log($"Pressed {button}.", LogLevel.Debug);
@@ -135,15 +147,13 @@ namespace MineAssist {
             if (cfg is null) {
                 return false;
             }
-            //exist in binding, check if it is ready to create new command
-            if (!m_executor.canTriggerNew()) {
+            //exist in binding, try to execute it or cache it
+            if (m_executor.tryTriggerNew(cfg)) {
+                m_cmdcfg = cfg;
+                m_curModifyTriggered = true;
+            } else {
                 m_cachedCmdCfg = cfg; //record the key to see if we can invoke it later. MAY HAVE ISSUE WITH THIS MECHANISM
-                return true;
             }
-            //exectued the command
-            m_cmdcfg = cfg;
-            m_executor.triggerNew(cfg);
-            m_curModifyTriggered = true;
             return true;
         }
 
@@ -157,40 +167,57 @@ namespace MineAssist {
                 StardewWrap.inGameMessage($"No {modeName} mode!!");
                 return;
             }
-            m_curMode = modeName;
-            m_keyMap = m_config.getModeDict(m_curMode);
+            m_curModeName = modeName;
+            m_keyMap = m_config.getModeDict(m_curModeName);
             StardewWrap.inGameMessage($"{modeName} mode ON!!");
         }
 
         /// <summary>Try to see if we can invoke last cached command</summary>
         protected void tryExecuteCachedCommand() {
-            if (m_cachedCmdCfg is null || !m_executor.canTriggerNew()) {
+            if (m_cachedCmdCfg is null) {
                 return;
             }
-            m_cmdcfg = m_cachedCmdCfg;
-            m_cachedCmdCfg = null;
-            m_executor.triggerNew(m_cmdcfg);
+            if (m_executor.tryTriggerNew(m_cachedCmdCfg)) {
+                m_cmdcfg = m_cachedCmdCfg;
+                m_cachedCmdCfg = null;
+            }
         }
 
+        /// <summary>if the released key is used in cached cmd, remove the cmd</summary>
+        protected void checkReleaseForCachedCommand(SButton button) {
+            if (m_cachedCmdCfg != null && (m_cachedCmdCfg.modifyKey == button || m_cachedCmdCfg.key == button)) {
+                m_cachedCmdCfg = null;
+            }
+        }
         /// <summary>Try to get command config from combined keys.</summary>
         /// <param name="key">The action key.</param>
         /// <returns>Is new command created</returns>
         private CmdCfg findCmdCfg(SButton key) {
             string combinedKey = ModeCfg.constructCmdKey(m_curModifyButton, key);
-            if (m_keyMap == null || !m_keyMap.ContainsKey(combinedKey)) {
-                return null;
+            if (m_keyMap != null && m_keyMap.ContainsKey(combinedKey)) {
+                return m_keyMap[combinedKey];
             }
-            return m_keyMap[combinedKey];
+            //check common mode later to make sure current mode can override common key bindings
+            if (m_commonKeyMap != null && m_commonKeyMap.ContainsKey(combinedKey)) {
+                return m_commonKeyMap[combinedKey];
+            }
+            return null;
         }
 
         /// <summary>Detrmie if a key is a modify key.</summary>
         /// <param name="key">The key.</param>
         /// <returns>If the key is a modify key</returns>
         private bool isModifyKey(SButton key) {
-            if (m_config == null || m_config.modes == null || !m_config.modes.ContainsKey(m_curMode)) {
+            if (m_config == null || m_config.modes == null) {
                 return false;
             }
-            return (m_config.modes[m_curMode].modifyKeys.Contains(key));
+            if (m_config.modes.ContainsKey(m_curModeName) && m_config.modes[m_curModeName].modifyKeys.Contains(key)) {
+                return true;
+            }
+            if (m_config.modes.ContainsKey(m_commonModeName) && m_config.modes[m_commonModeName].modifyKeys.Contains(key)) {
+                return true;
+            }
+            return false;
         }
     }
 }

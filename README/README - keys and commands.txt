@@ -1,5 +1,5 @@
 Commands and parameters:
-    UseItem: Directly use tool/weapon/items on toolbar. Tools almost all work well(fishing rod can cast, after that you need to use normal key to finish fishing). For weapons, sword and slingshot works well but using slingshot by a game pad may be interrupted by mouse move. Edible items and placeable items(including totem) work well, others are not tested.
+    UseItem: Directly use tool/weapon/items on toolbar. Tools almost all work well(fishing rod can cast, after that you need to use normal key to finish fishing). For weapons, sword and slingshot works well but using slingshot by a game pad may be interrupted by mouse move. Edible items and placeable items(including totem) also work well, others are not tested.
         ItemName/Position: Required parameter. Indicate which item to use. Either by position or item name. If both are provided, Position will override ItemName. Since number of visible items is 12, the range of Posisiotn parameter should be 1~12. However, it's possible to set as 13~36. ItemName could be actual item name or "Weapon" to indicate any short weapon (not including slingshot or Scythe) or "Edible" to indicate any Edible items or basic tool name like "PickAxe" instead of "Copper PickAxe". If more than one item matches, the first one will be used.
         Condition:Optional parameter. If specify item by name, this parameter can add additional conditions to limit item selection. Possible values:
             "StaminaAtLeast <Stamina>"
@@ -24,6 +24,9 @@ Commands and parameters:
     Craft: Craft items
         ItemName: Required parameter.
         ToPosition: Optional parameter. If this parameter is set, the crafted item will placed to the fixed position if possible. If there is an item in that position, the item will be place to another empty slot.
+    FocusItem: change current item to specified one
+        Offset: Specify the item related to the current one. This will try to find an nonempty slot. e.g. 2 means the right second from current item but if the one is empty, it will search next right one until a slot with an item is found. Another example, -1 means the one on the left of current item and if it is empty, it will search next left item an so on. 
+        Index: Specify the item by absolute index(start from 0). This will assign current item directly by the index even if there is nothing on that slot. Note that if both parameters are set, Index goes first so Offset will find item related to this Index.
     SwitchMod: Perform switch among modes.
         ModeName: Required parameter. Mode name to switch.
     OpenMenu: Open Journal Menu

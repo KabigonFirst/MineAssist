@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MineAssist.Framework {
     class CommandSwitchMode : Command {
-        public static string name = "SwitchMod";
+        public new static string name = "SwitchMod";
         public new enum Paramter {
             ModeName
         }
@@ -15,6 +15,7 @@ namespace MineAssist.Framework {
             if (par.ContainsKey(Paramter.ModeName.ToString())) {
                 ModEntry.m_instance.switchMode(par[Paramter.ModeName.ToString()]);
             }
+            isFinish = true;
         }
     }
 }
