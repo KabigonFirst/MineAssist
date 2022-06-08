@@ -1,4 +1,5 @@
 ﻿using System;
+
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using StardewModdingAPI;
@@ -8,7 +9,6 @@ using StardewValley.Menus;
 using SObject = StardewValley.Object;
 using Microsoft.Xna.Framework.Graphics;
 using System.Linq;
-using Netcode;
 
 namespace MineAssist.Framework {
     //Wrap game actions/status so other part of mod should not reference StardewValley dirtectly
@@ -36,7 +36,7 @@ namespace MineAssist.Framework {
             //normalize to visible item bar range: 0~11
             index = index >= 0 ? index % 12 : index % 12 + 12;
             //find next not-null item as current item
-            for (int i = 0; i < 12 && Game1.player.items[index] == null; ++i) {
+            for (int i = 0; i < 12 && Game1.player.Items[index] == null; ++i) {
                 if (rightDirection) {
                     index = (index + 1) % 12;
                 } else {
@@ -559,19 +559,26 @@ namespace MineAssist.Framework {
 
         public static void updateUse(int time, bool specialAction = false) {
             if (!specialAction && isCurrentToolChargable()) {
+                //Fishing rod
                 if (Game1.player.CurrentTool is FishingRod) {
                     updateFishingRod(time);
                     return;
                 }
+                //real chargable tool
                 if ((double)Game1.player.Stamina < 1.0) {
                     return;
                 }
                 if (Game1.player.toolHold <= 0 && canIncreaseToolPower()) {
-                    Game1.player.toolHold = 600;
+                    float num2 = 1f;
+                    if (Game1.player.CurrentTool != null)
+                        num2 = Game1.player.CurrentTool.AnimationSpeedModifier;
+                    Game1.player.toolHold = (int)(600 * num2);
                 } else if (canIncreaseToolPower()) {
                     Game1.player.toolHold -= time;
                     if (Game1.player.toolHold <= 0)
                         Game1.player.toolPowerIncrease();
+                } else {
+                    Game1.player.EndUsingTool();
                 }
             } else if (!isPlayerBusy() && canCurrentItemContiniouslyUse()) {
                 fastUse(Game1.player.CurrentToolIndex, specialAction);
@@ -648,12 +655,8 @@ namespace MineAssist.Framework {
         }
 
         public static bool canIncreaseToolPower() {
-#if DEBUG
-            return ((int)(Game1.player.CurrentTool.UpgradeLevel) > Game1.player.toolPower);
-#endif
-#if !DEBUG
-            return ((int)(Game1.player.CurrentTool.upgradeLevel) > Game1.player.toolPower);
-#endif
+            int num1 = Game1.player.CurrentTool.hasEnchantmentOfType<ReachingToolEnchantment>() ? 1 : 0;
+            return (Game1.player.CurrentTool.UpgradeLevel + num1 > Game1.player.toolPower);
         }
 
         public static void shakePlayer() {
@@ -741,7 +744,7 @@ namespace MineAssist.Framework {
                 Game1.player.showCarrying();
             else
                 Game1.player.showNotCarrying();
-            if (Game1.player.CurrentTool == null || Game1.player.CurrentTool.Name.Equals("Seeds") || (Game1.player.CurrentTool.Name.Contains("Sword") || (bool)(NetFieldBase<bool, NetBool>)Game1.player.CurrentTool.instantUse))
+            if (Game1.player.CurrentTool == null || Game1.player.CurrentTool.Name.Equals("Seeds") || (Game1.player.CurrentTool.Name.Contains("Sword") || Game1.player.CurrentTool.InstantUse))
                 return;
             Game1.player.CurrentTool.CurrentParentTileIndex = Game1.player.CurrentTool.CurrentParentTileIndex - Game1.player.CurrentTool.CurrentParentTileIndex % 8 + 2;
         }
